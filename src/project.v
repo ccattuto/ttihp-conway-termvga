@@ -164,7 +164,7 @@ lfsr_rng lfsr(
 
 // ----------------- SIMULATION PARAMS -------------------------
 
-localparam logWIDTH = 3, logHEIGHT = 3;         // 8x8 board
+localparam logWIDTH = 4, logHEIGHT = 4;         // 16x16 board
 localparam UPDATE_INTERVAL = CLOCK_FREQ / 5;    // 5 Hz simulation update
 
 localparam WIDTH = 2 ** logWIDTH;

@@ -7,8 +7,8 @@ import cocotb.result
 from cocotb.triggers import Timer, Edge, with_timeout
 import numpy as np
 
-BOARD_WIDTH = 8
-BOARD_HEIGHT = 8
+BOARD_WIDTH = 16
+BOARD_HEIGHT = 16
 
 
 @cocotb.test(timeout_time=100, timeout_unit='ms')
@@ -98,7 +98,7 @@ async def test2(dut):
     dut._log.info("Received correct init string")
 
     # compute correct 1-step evolution of the initial state
-    board_state = np.array([1 if c == "1" else 0 for c in "1100000111010000100010100100011001111110100110011101110110010111"[::-1]], dtype=int).reshape(8,8)
+    board_state = np.array([1 if c == "1" else 0 for c in "1100000111010000110100001001100110001010110100000100011001111110011111101101110110011001110000011101110111000001100101111100000111010000100110011001100111000001000010011111111111111111110000000000000000000000111111111111111111110000111100000101110111000001"[::-1]], dtype=int).reshape(16,16)
     board_state_correct = next_board_state(board_state)
 
     # send '1' and receive board update
