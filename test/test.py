@@ -7,11 +7,11 @@ import cocotb.result
 from cocotb.triggers import Timer, Edge, with_timeout
 import numpy as np
 
-BOARD_WIDTH = 16
+BOARD_WIDTH = 32
 BOARD_HEIGHT = 16
 
 
-@cocotb.test(timeout_time=500, timeout_unit='ms')
+@cocotb.test(timeout_time=1000, timeout_unit='ms')
 async def test(dut):
     dut._log.info("Start")
 
@@ -144,7 +144,7 @@ async def get_uart_str(dut, uart_tx):
     blist = []
 
     while True:
-        rx_byte = await do_rx(dut, uart_tx, 115200, timeout_us=100)
+        rx_byte = await do_rx(dut, uart_tx, 115200, timeout_us=1000)
         if rx_byte == None:
             break
         dut._log.info("Received [%d]: 0x%02X" % (len(blist), rx_byte))
