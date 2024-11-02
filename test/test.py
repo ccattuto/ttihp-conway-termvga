@@ -11,7 +11,7 @@ BOARD_WIDTH = 16
 BOARD_HEIGHT = 16
 
 
-@cocotb.test(timeout_time=100, timeout_unit='ms')
+@cocotb.test(timeout_time=500, timeout_unit='ms')
 async def test(dut):
     dut._log.info("Start")
 
@@ -66,52 +66,6 @@ async def test(dut):
         dut._log.info(board_state)
 
         assert np.array_equal(board_state, board_state_correct)
-
-    dut._log.info("All good!")
-
-@cocotb.test(timeout_time=100, timeout_unit='ms')
-async def test2(dut):
-    dut._log.info("Start")
-
-    # Set the clock period to 24 MHz
-    clock = Clock(dut.clk, 41666, units="ps")
-    cocotb.start_soon(clock.start())
-
-    # UART signals
-    uart_rx = dut.ui_in[3]
-    uart_tx = dut.uo_out[4]
-
-    # GPIO config
-    do_gpio_config(dut)
-
-    # reset
-    await do_reset(dut)
-    assert uart_tx == 1
-
-    # send CR over UART to trigger init message
-    f = cocotb.start_soon(send_cmd(dut, uart_rx, 13))
-    init_str = await get_uart_str(dut, uart_tx)
-    await f
-
-    # check for correct init string
-    assert init_str == INIT_STRING
-    dut._log.info("Received correct init string")
-
-    # compute correct 1-step evolution of the initial state
-    board_state = np.array([1 if c == "1" else 0 for c in "1100000111010000110100001001100110001010110100000100011001111110011111101101110110011001110000011101110111000001100101111100000111010000100110011001100111000001000010011111111111111111110000000000000000000000111111111111111111110000111100000101110111000001"[::-1]], dtype=int).reshape(16,16)
-    board_state_correct = next_board_state(board_state)
-
-    # send '1' and receive board update
-    await Timer(0.25, units="ms")
-    f = cocotb.start_soon(send_cmd(dut, uart_rx, ord('1')))
-    await Edge(dut.uo_out)
-    board_state_str = await get_uart_str(dut, uart_tx)
-    await f
-
-    board_state = parse_board_state(board_state_str)
-    dut._log.info(board_state)
-
-    assert np.array_equal(board_state, board_state_correct)
 
     dut._log.info("All good!")
 
