@@ -35,6 +35,11 @@ localparam CLOCK_FREQ = 24000000;
 wire boot_reset;
 assign boot_reset = ~rst_n;
 
+// GPIO simulation control (as opposed to control via UART)
+wire ctrl_running, ctrl_randomize;
+assign ctrl_running = ui_in[0];
+assign ctrl_randomize = ui_in[1];
+
 // TinyVGA PMOD
 assign uio_out = {hsync, B[0], G[0], R[0], vsync, B[1], G[1], R[1]};
 
@@ -256,8 +261,11 @@ always @(posedge clk) begin
           end else begin
             timer <= 0;
             uart_rx_ready <= 0;
-            action <= ACTION_UPDATE;
+            action <= (~ctrl_randomize) ? ACTION_UPDATE : ACTION_RND;
           end
+        end else if (ctrl_running) begin
+          running <= 1;
+          timer <= 0;
         end
       end
 
