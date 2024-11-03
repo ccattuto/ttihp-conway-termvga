@@ -261,7 +261,7 @@ always @(posedge clk) begin
           end else begin
             timer <= 0;
             uart_rx_ready <= 0;
-            action <= (~ctrl_randomize) ? ACTION_UPDATE : ACTION_RND;
+            action <= ACTION_UPDATE;
           end
         end else if (ctrl_running) begin
           running <= 1;
@@ -285,7 +285,7 @@ always @(posedge clk) begin
       // ----------------- ACTION: LOAD INITIAL PATTERN --------------------
 
       ACTION_LOAD_INIT: begin
-        board_state[index] <= rng;
+        board_state[index] <= board_state_init[index];
         if (index < BOARD_SIZE - 1) begin
           index <= index + 1;
         end else  begin
@@ -519,6 +519,11 @@ localparam STRING_INIT_LEN = 57;
 reg [7:0] string_init [0:STRING_INIT_LEN-1];
 initial begin
   $readmemh("string_init.hex", string_init);
+end
+
+reg [511:0] board_state_init;
+initial begin
+  board_state_init = 512'b10100110111101010110100111101110100111110001100111110000000010100101111010111010001011011000101000001100011111011111110101010011101101000101110000100111111011011011111011001101010110100010101001101111100100001100101110111001101111000000010111111010110000100000000110111100110111011110100101111011110001111111111101011011011101000101110001010100010111101101111010011010000111010101001100001110010001101100110011100111010101000111010100110010000000101100100111100010000000110010100011001101111111010100011000011111;
 end
 
 // Icon for live cell
