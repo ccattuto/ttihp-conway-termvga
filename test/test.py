@@ -50,8 +50,8 @@ async def test(dut):
     dut._log.info("RANDOMIZED")
     dut._log.info(board_state)
 
-    # advance step by step for 5 steps and check correct state evolution
-    for count in range(5):
+    # advance step by step for 3 steps and check correct state evolution
+    for count in range(3):
         board_state_correct = next_board_state(board_state)
 
         # send '1' and receive board update

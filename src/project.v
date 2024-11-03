@@ -110,45 +110,22 @@ hvsync_generator hvsync_inst (
   .vpos(pix_y)
 );
 
+// high when the pixel belongs to the simulation rectangle
 wire frame_active;
-assign frame_active = (pix_x >= 80 && pix_x < 640-80) ? 1 : 0;
+assign frame_active = (pix_x >= 64 && pix_x < 640-64 && pix_y >= 112 && pix_y < 480-112) ? 1 : 0;
 
-wire [2:0] cell_x_index;
-wire [2:0] cell_y_index;
+// look up into the 16x16 icon bitmap for live cells
+wire icon_pixel;
+assign icon_pixel = icon[pix_y[3:0]][pix_x[3:0]];
 
-assign cell_x_index =
-  (pix_x < 140) ? 0 :
-  (pix_x < 200) ? 1 :
-  (pix_x < 260) ? 2 :
-  (pix_x < 320) ? 3 :
-  (pix_x < 380) ? 4 :
-  (pix_x < 440) ? 5 :
-  (pix_x < 500) ? 6 :
-  (pix_x < 560) ? 7 : 0;
+// compute index into board state (hardcoded logic for 32x16 grid)
+wire [8:0] cell_index;
+assign cell_index = (pix_y[7:4] << 5) | pix_x[8:4];
 
-assign cell_y_index =
-  (pix_y < 60) ? 0 :
-  (pix_y < 120) ? 1 :
-  (pix_y < 180) ? 2 :
-  (pix_y < 240) ? 3 :
-  (pix_y < 300) ? 4 :
-  (pix_y < 360) ? 5 :
-  (pix_y < 420) ? 6 : 7;
-
-wire [5:0] cell_index;
-assign cell_index = (cell_y_index << 3) | cell_x_index;
-
-// grid lines
-wire [5:0] grid_x;
-wire [5:0] grid_y;
-wire grid;
-assign grid_x = pix_x - 80 - (cell_x_index << 6) + (cell_x_index << 2);
-assign grid_y = pix_y - (cell_y_index << 6) + (cell_y_index << 2);
-assign grid = (grid_x < 2 || grid_x > 57 || grid_y < 2 || grid_y > 57) ? 0 : 1;
-
-assign R = (video_active & frame_active) ? {board_state[cell_index] & grid, 1'b0} : 2'b00;
-assign G = (video_active & frame_active) ? {board_state[cell_index] & grid, 1'b1} : 2'b00;
-assign B = {1'b0, video_active & frame_active & grid};
+// generate RGB signals
+assign R = (video_active & frame_active) ? {board_state[cell_index] & icon_pixel, 1'b1} : 2'b00;
+assign G = (video_active & frame_active) ? {board_state[cell_index] & icon_pixel, 1'b1} : 2'b00;
+assign B = 2'b01;
 
 
 // ----------------- RNG ----------------------
@@ -297,11 +274,10 @@ always @(posedge clk) begin
         end
       end
 
-      // ----------------- ACTION: LOAD (LONG) PERIODIC PATTERN --------------------
-      // (found using https://github.com/urish/tt05-silife-max/tree/main/utils)
+      // ----------------- ACTION: LOAD INITIAL PATTERN --------------------
 
       ACTION_LOAD_INIT: begin
-        board_state[index] <= board_state_init[index];
+        board_state[index] <= rng;
         if (index < BOARD_SIZE - 1) begin
           index <= index + 1;
         end else  begin
@@ -537,10 +513,25 @@ initial begin
   $readmemh("string_init.hex", string_init);
 end
 
-// initial periodic pattern
-reg [511:0] board_state_init;
+// Icon for live cell
+reg [15:0] icon[0:15];
 initial begin
-  board_state_init = 512'b10100110111101010110100111101110100111110001100111110000000010100101111010111010001011011000101000001100011111011111110101010011101101000101110000100111111011011011111011001101010110100010101001101111100100001100101110111001101111000000010111111010110000100000000110111100110111011110100101111011110001111111111101011011011101000101110001010100010111101101111010011010000111010101001100001110010001101100110011100111010101000111010100110010000000101100100111100010000000110010100011001101111111010100011000011111;
+  icon[0]  = 16'b0000000000000000;
+  icon[1]  = 16'b0000000000000000;
+  icon[2]  = 16'b0000001111000000;
+  icon[3]  = 16'b0000111111110000;
+  icon[4]  = 16'b0001111111111000;
+  icon[5]  = 16'b0001111111111000;
+  icon[6]  = 16'b0011111111111100;
+  icon[7]  = 16'b0011111111111100;
+  icon[8]  = 16'b0011111111111100;
+  icon[9]  = 16'b0011111111111100;
+  icon[10] = 16'b0001111111111000;
+  icon[11] = 16'b0001111111111000;
+  icon[12] = 16'b0000111111110000;
+  icon[13] = 16'b0000001111000000;
+  icon[14] = 16'b0000000000000000;
+  icon[15] = 16'b0000000000000000;
 end
 
 endmodule
