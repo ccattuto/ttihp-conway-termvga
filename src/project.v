@@ -261,7 +261,7 @@ always @(posedge clk) begin
           end else begin
             timer <= 0;
             uart_rx_ready <= 0;
-            action <= ACTION_UPDATE;
+            action <= (~ctrl_randomize) ? ACTION_UPDATE : ACTION_RND;
           end
         end else if (ctrl_running) begin
           running <= 1;
