@@ -4,14 +4,15 @@
 import cocotb
 from cocotb.clock import Clock
 import cocotb.result
-from cocotb.triggers import Timer, Edge, with_timeout
+from cocotb.triggers import Timer, Edge, with_timeout, RisingEdge, FallingEdge
 import numpy as np
+from PIL import Image
 
 BOARD_WIDTH = 32
 BOARD_HEIGHT = 16
 
 
-@cocotb.test(timeout_time=1000, timeout_unit='ms')
+#@cocotb.test(timeout_time=1000, timeout_unit='ms')
 async def test(dut):
     dut._log.info("Start")
 
@@ -70,7 +71,197 @@ async def test(dut):
     dut._log.info("All good!")
 
 
+#@cocotb.test(timeout_time=1000, timeout_unit='ms')
+async def test2(dut):
+    dut._log.info("Start")
+
+    # Set the clock period to 24 MHz
+    clock = Clock(dut.clk, 41666, units="ps")
+    cocotb.start_soon(clock.start())
+
+    # UART signals
+    uart_rx = dut.ui_in[3]
+    uart_tx = dut.uo_out[4]
+
+    # GPIO control
+    ctrl_running = dut.ui_in[0]
+    ctrl_randomize = dut.ui_in[1]
+
+    # GPIO config
+    do_gpio_config(dut)
+
+    # reset
+    await do_reset(dut)
+    assert uart_tx == 1
+
+    # send CR over UART to trigger init message
+    f = cocotb.start_soon(send_cmd(dut, uart_rx, 13))
+    init_str = await get_uart_str(dut, uart_tx)
+    await f
+
+    # check for correct init string
+    assert init_str == INIT_STRING
+    dut._log.info("Received correct init string")
+
+    # # trigger running stage via GPIO and receive board state
+    # ctrl_running.value = 1
+    # await Timer(1, units="us")
+    # ctrl_running.value = 0
+    # await Timer(0.25, units="ms")
+
+    # send ' ' and receive board update
+    await Timer(0.25, units="ms")
+    f = cocotb.start_soon(send_cmd(dut, uart_rx, ord(' ')))
+    await Edge(dut.uo_out)
+    board_state_str = await get_uart_str(dut, uart_tx)
+    await f
+
+    #board_state_str = await get_uart_str(dut, uart_tx)
+    board_state = parse_board_state(board_state_str)
+    dut._log.info(board_state)
+
+    dut._log.info("All good!")
+
+#@cocotb.test(timeout_time=1000, timeout_unit='ms')
+async def test3(dut):
+    dut._log.info("Start")
+
+    # Set the clock period to 24 MHz
+    clock = Clock(dut.clk, 41666, units="ps")
+    cocotb.start_soon(clock.start())
+
+    # UART signals
+    uart_rx = dut.ui_in[3]
+    uart_tx = dut.uo_out[4]
+
+    # GPIO control
+    ctrl_running = dut.ui_in[0]
+    ctrl_randomize = dut.ui_in[1]
+
+    # initial pattern
+    board_state = np.array([1 if c == "1" else 0 for c in "10100110111101010110100111101110100111110001100111110000000010100101111010111010001011011000101000001100011111011111110101010011101101000101110000100111111011011011111011001101010110100010101001101111100100001100101110111001101111000000010111111010110000100000000110111100110111011110100101111011110001111111111101011011011101000101110001010100010111101101111010011010000111010101001100001110010001101100110011100111010101000111010100110010000000101100100111100010000000110010100011001101111111010100011000011111"[::-1]], dtype=int).reshape(16,32)
+    dut._log.info(board_state)
+    board_state_correct = next_board_state(board_state)
+
+    # GPIO config
+    do_gpio_config(dut)
+
+    # reset
+    await do_reset(dut)
+    assert uart_tx == 1
+
+    # send CR over UART to trigger init message
+    f = cocotb.start_soon(send_cmd(dut, uart_rx, 13))
+    init_str = await get_uart_str(dut, uart_tx)
+    await f
+
+    # check for correct init string
+    assert init_str == INIT_STRING
+    dut._log.info("Received correct init string")
+
+    # trigger running stage via GPIO and receive board state
+    ctrl_running.value = 1
+    await Timer(1, units="us")
+    ctrl_running.value = 0
+    await Timer(0.25, units="ms")
+
+    await Edge(dut.uo_out)
+    board_state_str = await get_uart_str(dut, uart_tx)
+
+    board_state = parse_board_state(board_state_str)
+    dut._log.info(board_state)
+
+    assert np.array_equal(board_state, board_state_correct)
+    dut._log.info("Display to UART is correct")
+
+@cocotb.test(timeout_time=1000, timeout_unit='ms')
+async def test4(dut):
+    dut._log.info("Start")
+
+    # Set the clock period to 24 MHz
+    clock = Clock(dut.clk, 41666, units="ps")
+    cocotb.start_soon(clock.start())
+
+    # UART signals
+    uart_rx = dut.ui_in[3]
+    uart_tx = dut.uo_out[4]
+
+    # GPIO control
+    ctrl_running = dut.ui_in[0]
+    ctrl_randomize = dut.ui_in[1]
+
+    # VGA signals
+    # hsync = dut.uio_out[0]
+    # vsync = dut.uio_out[4]
+    # B0 = dut.uio_out[1]
+    # G0 = dut.uio_out[2]
+    # R0 = dut.uio_out[3]
+    # B1 = dut.uio_out[5]
+    # G1 = dut.uio_out[6]
+    # R1 = dut.uio_out[7]
+
+    # GPIO config
+    do_gpio_config(dut)
+
+    # reset
+    await do_reset(dut)
+    assert uart_tx == 1
+
+    # send CR over UART to trigger init message
+    f = cocotb.start_soon(send_cmd(dut, uart_rx, 13))
+    init_str = await get_uart_str(dut, uart_tx)
+    await f
+
+    # check for correct init string
+    assert init_str == INIT_STRING
+    dut._log.info("Received correct init string")
+
+    # trigger running stage via GPIO and receive board state
+    ctrl_running.value = 1
+    await Timer(1, units="us")
+    ctrl_running.value = 0
+    await Timer(0.25, units="ms")
+
+    # await Edge(dut.uo_out)
+    # board_state_str = await get_uart_str(dut, uart_tx)
+
+    # board_state = parse_board_state(board_state_str)
+    # dut._log.info(board_state)
+
+    # assert np.array_equal(board_state, board_state_correct)
+    # dut._log.info("Display to UART is correct")
+
+    vgaframe = await grab_vgaframe(dut) #, hsync, vsync, R0, R1, G0, G1, B0, B1)
+    #dut._log.info(vgaframe[:,:,0])
+
+    img = Image.fromarray(vgaframe * 64)
+    img.save("vga_grab.png")
+
+    dut._log.info("All good!")
+
 # HELPER FUNCTIONS
+
+async def grab_vgaframe(dut): #, hsync, vsync, R0, R1, G0, G1, B0, B1):
+    vga_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+
+    await RisingEdge(dut.user_project.vsync)
+    await FallingEdge(dut.user_project.vsync)
+
+    for ypos in range(32+480):
+        await RisingEdge(dut.user_project.hsync)
+        await FallingEdge(dut.user_project.hsync)
+        if ypos < 32:
+            continue
+
+        await Timer(41666 * 47, units="ps")
+        for xpos in range(640):
+            await Timer(41666 / 2, units="ps")
+            vga_frame[ypos-32][xpos][0] = dut.user_project.R[1].value << 1 | dut.user_project.R[0].value
+            vga_frame[ypos-32][xpos][1] = dut.user_project.G[1].value << 1 | dut.user_project.G[0].value
+            vga_frame[ypos-32][xpos][2] = dut.user_project.B[1].value << 1 | dut.user_project.B[0].value
+            await Timer(41666 / 2, units="ps")
+
+    return vga_frame
 
 async def send_cmd(dut, uart_rx, cmd=13):
     dut._log.info("Sending: 0x%02X" % cmd)
