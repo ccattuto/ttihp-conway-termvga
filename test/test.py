@@ -6,7 +6,7 @@ from cocotb.clock import Clock
 import cocotb.result
 from cocotb.triggers import Timer, Edge, with_timeout, RisingEdge, FallingEdge
 import numpy as np
-from PIL import Image
+#from PIL import Image
 
 BOARD_WIDTH = 32
 BOARD_HEIGHT = 16
@@ -226,8 +226,8 @@ async def test4(dut):
 
     vgaframe = await grab_vga(dut, hsync, vsync, R1, R0, B1, B0, G1, G0)
     #dut._log.info(vgaframe[:,:,0])
-    img = Image.fromarray(vgaframe * 64)
-    img.save("vga_grab1.png")
+    #img = Image.fromarray(vgaframe * 64)
+    #img.save("vga_grab1.png")
 
     board_state = parse_vga_frame(vgaframe)
     board_state_correct = next_board_state(board_state)
@@ -239,8 +239,8 @@ async def test4(dut):
         await Edge(dut.uo_out)
 
     vgaframe = await grab_vga(dut, hsync, vsync, R1, R0, B1, B0, G1, G0)
-    img = Image.fromarray(vgaframe * 64)
-    img.save("vga_grab2.png")
+    #img = Image.fromarray(vgaframe * 64)
+    #img.save("vga_grab2.png")
 
     board_state = parse_vga_frame(vgaframe)
 
