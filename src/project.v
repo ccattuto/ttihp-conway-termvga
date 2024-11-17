@@ -19,7 +19,7 @@ module tt_um_ccattuto_conway (
 // -------------- I/O PINS ---------------------------
 
 // All output pins must be assigned. If not used, assign to 0.
-assign uo_out[3:0] = 0;
+assign uo_out[3:1] = 0;
 assign uo_out[7:5] = 0;
 assign uio_oe  = 8'b1;
 
@@ -34,6 +34,9 @@ localparam CLOCK_FREQ = 24000000;
 // reset
 wire boot_reset;
 assign boot_reset = ~rst_n;
+
+// board state update signal
+assign uo_out[0] = (action == ACTION_COPY) ? 1 : 0;
 
 // GPIO simulation control (as opposed to control via UART)
 wire ctrl_running, ctrl_randomize;
