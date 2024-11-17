@@ -10,3 +10,5 @@ test/__pycache__/
 test/results.xml
 test/gate_level_netlist.v
 test/vga_grab.png
+test/vga_grab1.png
+test/vga_grab2.png

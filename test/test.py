@@ -12,7 +12,7 @@ BOARD_WIDTH = 32
 BOARD_HEIGHT = 16
 
 
-#@cocotb.test(timeout_time=1000, timeout_unit='ms')
+@cocotb.test(timeout_time=1000, timeout_unit='ms')
 async def test(dut):
     dut._log.info("Start")
 
@@ -57,8 +57,10 @@ async def test(dut):
 
         # send '1' and receive board update
         await Timer(0.25, units="ms")
+        dut._log.info("Step simulation sending \"1\" and wait for update")
         f = cocotb.start_soon(send_cmd(dut, uart_rx, ord('1')))
-        await Edge(dut.uo_out)
+        while uart_tx.value == 1:
+            await Edge(dut.uo_out)
         board_state_str = await get_uart_str(dut, uart_tx)
         await f
 
@@ -71,7 +73,7 @@ async def test(dut):
     dut._log.info("All good!")
 
 
-#@cocotb.test(timeout_time=1000, timeout_unit='ms')
+@cocotb.test(timeout_time=1000, timeout_unit='ms')
 async def test2(dut):
     dut._log.info("Start")
 
@@ -103,26 +105,21 @@ async def test2(dut):
     assert init_str == INIT_STRING
     dut._log.info("Received correct init string")
 
-    # # trigger running stage via GPIO and receive board state
-    # ctrl_running.value = 1
-    # await Timer(1, units="us")
-    # ctrl_running.value = 0
-    # await Timer(0.25, units="ms")
-
     # send ' ' and receive board update
     await Timer(0.25, units="ms")
+    dut._log.info("Start simulation sending <space>")
     f = cocotb.start_soon(send_cmd(dut, uart_rx, ord(' ')))
-    await Edge(dut.uo_out)
+    while uart_tx.value == 1:
+        await Edge(dut.uo_out)
     board_state_str = await get_uart_str(dut, uart_tx)
     await f
 
-    #board_state_str = await get_uart_str(dut, uart_tx)
     board_state = parse_board_state(board_state_str)
     dut._log.info(board_state)
 
     dut._log.info("All good!")
 
-#@cocotb.test(timeout_time=1000, timeout_unit='ms')
+@cocotb.test(timeout_time=1000, timeout_unit='ms')
 async def test3(dut):
     dut._log.info("Start")
 
@@ -160,12 +157,15 @@ async def test3(dut):
     dut._log.info("Received correct init string")
 
     # trigger running stage via GPIO and receive board state
+    dut._log.info("Start simulation via GPIO")
     ctrl_running.value = 1
     await Timer(1, units="us")
     ctrl_running.value = 0
     await Timer(0.25, units="ms")
 
-    await Edge(dut.uo_out)
+    dut._log.info("Wait for simulation update")
+    while uart_tx.value == 1:
+        await Edge(dut.uo_out) 
     board_state_str = await get_uart_str(dut, uart_tx)
 
     board_state = parse_board_state(board_state_str)
@@ -189,16 +189,17 @@ async def test4(dut):
     # GPIO control
     ctrl_running = dut.ui_in[0]
     ctrl_randomize = dut.ui_in[1]
+    ctrl_update = dut.uo_out[0]
 
     # VGA signals
-    # hsync = dut.uio_out[0]
-    # vsync = dut.uio_out[4]
-    # B0 = dut.uio_out[1]
-    # G0 = dut.uio_out[2]
-    # R0 = dut.uio_out[3]
-    # B1 = dut.uio_out[5]
-    # G1 = dut.uio_out[6]
-    # R1 = dut.uio_out[7]
+    hsync = dut.uio_out[7]
+    vsync = dut.uio_out[3]
+    R0 = dut.uio_out[4]
+    G0 = dut.uio_out[5]
+    B0 = dut.uio_out[6]
+    R1 = dut.uio_out[0]
+    G1 = dut.uio_out[1]
+    B1 = dut.uio_out[2]
 
     # GPIO config
     do_gpio_config(dut)
@@ -217,51 +218,72 @@ async def test4(dut):
     dut._log.info("Received correct init string")
 
     # trigger running stage via GPIO and receive board state
+    dut._log.info("Start simulation via GPIO")
     ctrl_running.value = 1
     await Timer(1, units="us")
     ctrl_running.value = 0
     await Timer(0.25, units="ms")
 
-    # await Edge(dut.uo_out)
-    # board_state_str = await get_uart_str(dut, uart_tx)
-
-    # board_state = parse_board_state(board_state_str)
-    # dut._log.info(board_state)
-
-    # assert np.array_equal(board_state, board_state_correct)
-    # dut._log.info("Display to UART is correct")
-
-    vgaframe = await grab_vgaframe(dut) #, hsync, vsync, R0, R1, G0, G1, B0, B1)
+    vgaframe = await grab_vga(dut, hsync, vsync, R1, R0, B1, B0, G1, G0)
     #dut._log.info(vgaframe[:,:,0])
-
     img = Image.fromarray(vgaframe * 64)
-    img.save("vga_grab.png")
+    img.save("vga_grab1.png")
 
-    dut._log.info("All good!")
+    board_state = parse_vga_frame(vgaframe)
+    board_state_correct = next_board_state(board_state)
+
+    dut._log.info("Wait for simulation update")
+    while ctrl_update.value == 0:
+        await Edge(dut.uo_out)
+    while ctrl_update.value == 1:
+        await Edge(dut.uo_out)
+
+    vgaframe = await grab_vga(dut, hsync, vsync, R1, R0, B1, B0, G1, G0)
+    img = Image.fromarray(vgaframe * 64)
+    img.save("vga_grab2.png")
+
+    board_state = parse_vga_frame(vgaframe)
+
+    assert np.array_equal(board_state, board_state_correct)
+    dut._log.info("Display to VGA is correct")
+
 
 # HELPER FUNCTIONS
 
-async def grab_vgaframe(dut): #, hsync, vsync, R0, R1, G0, G1, B0, B1):
+async def grab_vga(dut, hsync, vsync, R1, R0, B1, B0, G1, G0):
     vga_frame = np.zeros((480, 640, 3), dtype=np.uint8)
 
-    await RisingEdge(dut.user_project.vsync)
-    await FallingEdge(dut.user_project.vsync)
+    dut._log.info("grab VGA frame: wait for vsync")
+    while vsync.value == 0:
+        await Edge(dut.uio_out)
+    while vsync.value == 1:
+        await Edge(dut.uio_out)
+    dut._log.info("grab VGA frame: start")
 
     for ypos in range(32+480):
-        await RisingEdge(dut.user_project.hsync)
-        await FallingEdge(dut.user_project.hsync)
+        while hsync.value == 0:
+            await Edge(dut.uio_out)
+        while hsync.value == 1:
+            await Edge(dut.uio_out)
+
         if ypos < 32:
             continue
+        #dut._log.info("grabbing VGA row %d" % (ypos-32))
 
         await Timer(41666 * 47, units="ps")
         for xpos in range(640):
             await Timer(41666 / 2, units="ps")
-            vga_frame[ypos-32][xpos][0] = dut.user_project.R[1].value << 1 | dut.user_project.R[0].value
-            vga_frame[ypos-32][xpos][1] = dut.user_project.G[1].value << 1 | dut.user_project.G[0].value
-            vga_frame[ypos-32][xpos][2] = dut.user_project.B[1].value << 1 | dut.user_project.B[0].value
+            vga_frame[ypos-32][xpos][0] = R1.value << 1 | R0.value
+            vga_frame[ypos-32][xpos][1] = G1.value << 1 | G0.value
+            vga_frame[ypos-32][xpos][2] = B1.value << 1 | B0.value
             await Timer(41666 / 2, units="ps")
 
+    dut._log.info("grab VGA frame: done")
+
     return vga_frame
+
+def parse_vga_frame(frame):
+    return frame[112+8:480-112:16, 64+8:640-64:16, 0] // 2
 
 async def send_cmd(dut, uart_rx, cmd=13):
     dut._log.info("Sending: 0x%02X" % cmd)
